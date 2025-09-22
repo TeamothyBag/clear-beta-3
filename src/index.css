@@ -12,41 +12,41 @@ All colors MUST be HSL for consistency and accessibility
 @layer base {
   :root {
     /* Core Brand Colors - Nature-Inspired Mental Health Palette */
-    --background: 0 0% 100%;
-    --foreground: 28 12% 25%; /* Warm dark gray #574747 for gentle readability */
+    --background: 60 30% 96%; /* #F8F6F0 - Warm, soft cream background */
+    --foreground: 45 15% 25%; /* #474538 - Warm charcoal for text */
     
     /* Primary Green System - Growth, renewal, harmony */
-    --primary: 73 21% 51%; /* #91A56E - Main therapeutic green */
-    --primary-light: 76 40% 74%; /* #CDE0A4 - Fresh, healing light green */
-    --primary-deep: 314 85% 19%; /* #600E52 - Deep forest grounding */
+    --primary: 82 25% 45%; /* #7A915E - Main therapeutic sage green */
+    --primary-light: 82 35% 75%; /* #B8CCA0 - Fresh, healing light green */
+    --primary-deep: 82 30% 25%; /* #3D4A2E - Deep forest grounding */
     --primary-foreground: 0 0% 98%;
     
     /* Therapeutic Neutrals */
-    --secondary: 38 5% 56%; /* #8F8884 - Sophisticated neutral */
-    --secondary-foreground: 28 12% 25%;
-    --muted: 60 9% 98%;
-    --muted-foreground: 38 5% 56%;
+    --secondary: 35 15% 45%; /* #7A7268 - Warm taupe */
+    --secondary-foreground: 45 15% 25%;
+    --muted: 60 20% 94%; /* #F2F0E8 - Soft neutral */
+    --muted-foreground: 35 10% 50%;
     
     /* Wellness Accent Colors */
-    --accent: 76 40% 74%; /* Light healing green */
-    --accent-foreground: 28 12% 25%;
+    --accent: 82 35% 75%; /* Light healing green */
+    --accent-foreground: 45 15% 25%;
     
     /* Calming UI Elements */
     --card: 0 0% 100%;
-    --card-foreground: 28 12% 25%;
+    --card-foreground: 45 15% 25%;
     --popover: 0 0% 100%;
-    --popover-foreground: 28 12% 25%;
+    --popover-foreground: 45 15% 25%;
     
     /* Gentle Interactions */
-    --border: 60 10% 91%;
-    --input: 60 10% 91%;
-    --ring: 73 21% 51%;
+    --border: 60 15% 88%; /* #E0DDD2 - Warm neutral border */
+    --input: 60 15% 88%;
+    --ring: 82 25% 45%;
     
     /* Crisis/Alert Colors - Compassionate but clear */
     --destructive: 0 65% 58%;
     --destructive-foreground: 0 0% 98%;
     --warning: 43 96% 56%;
-    --warning-foreground: 28 12% 25%;
+    --warning-foreground: 45 15% 25%;
     --success: 142 71% 45%;
     --success-foreground: 0 0% 98%;
 

@@ -20,7 +20,8 @@ import {
   Activity,
   User,
   Settings,
-  Stethoscope
+  Stethoscope,
+  Component
 } from "lucide-react";
 import { WellnessCard } from "./WellnessCard";
 import { CrisisSupport } from "./CrisisSupport";
@@ -31,9 +32,11 @@ import { FloatingDock } from "./FloatingDock";
 
 interface DashboardProps {
   userName?: string;
+  onCrisisSupport?: () => void;
+  onNavigate?: (route: string) => void;
 }
 
-export const Dashboard = ({ userName = "Friend" }: DashboardProps) => {
+export const Dashboard = ({ userName = "Friend", onCrisisSupport, onNavigate }: DashboardProps) => {
   const [activeTab, setActiveTab] = useState("all");
   const currentHour = new Date().getHours();
   const greeting = currentHour < 12 ? "Good morning" : currentHour < 18 ? "Good afternoon" : "Good evening";
@@ -47,27 +50,38 @@ export const Dashboard = ({ userName = "Friend" }: DashboardProps) => {
       color: "destructive" as const,
       category: "emergency",
       priority: 1,
-      component: <CrisisSupport />
+      onClick: onCrisisSupport
     },
     {
       id: "meditation",
-      title: "Meditation",
-      description: "Find your inner peace",
+      title: "Mindfulness",
+      description: "Guided meditation & breathing",
       icon: Brain,
       color: "primary" as const,
       category: "mindfulness",
       priority: 2,
-      component: <MeditationSession />
+      onClick: () => onNavigate?.("/meditation")
     },
     {
       id: "tracking",
       title: "Mood Check",
-      description: "Quick mood tracking",
+      description: "Track your emotional wellbeing",
       icon: Heart,
       color: "success" as const,
       category: "tracking",
       priority: 3,
-      component: <MoodTracker />
+      Component: <MoodTracker onNavigateToDetailed={() => onNavigate?.("/mood")} />,
+   
+    },
+    {
+      id: "schedule",
+      title: "My Schedule",
+      description: "Appointments & habits",
+      icon: Calendar,
+      color: "accent" as const,
+      category: "planning",
+      priority: 4,
+      onClick: () => onNavigate?.("/schedule")
     },
     {
       id: "physio",
@@ -182,7 +196,8 @@ export const Dashboard = ({ userName = "Friend" }: DashboardProps) => {
                       color={action.color}
                       category={action.category}
                       priority={action.priority}
-                      component={action.component}
+                      component={action.Component}
+                      onClick={action.onClick}
                     />
                   ))}
               </div>
@@ -190,9 +205,6 @@ export const Dashboard = ({ userName = "Friend" }: DashboardProps) => {
           </Tabs>
         </div>
       </main>
-
-      {/* Floating Dock Navigation */}
-      <FloatingDock />
     </div>
   );
 };

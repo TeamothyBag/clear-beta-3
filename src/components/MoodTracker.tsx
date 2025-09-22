@@ -16,7 +16,11 @@ const moodOptions = [
   { icon: Frown, label: "Tough", emoji: "😢", value: 1 },
 ];
 
-export const MoodTracker = () => {
+interface MoodTrackerProps {
+  onNavigateToDetailed?: () => void;
+}
+
+export const MoodTracker = ({ onNavigateToDetailed }: MoodTrackerProps) => {
   const [selectedMood, setSelectedMood] = useState<number | null>(null);
 
   const handleMoodSelect = (value: number) => {
@@ -77,6 +81,7 @@ export const MoodTracker = () => {
           variant="outline" 
           size="sm"
           className="text-xs"
+          onClick={onNavigateToDetailed}
         >
           View Detailed Tracking
         </Button>

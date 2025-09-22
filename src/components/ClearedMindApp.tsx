@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { WelcomeScreen } from "./WelcomeScreen";
 import { AuthScreen } from "./AuthScreen";
-import { Dashboard } from "./Dashboard";
+import { WellnessApp } from "./WellnessApp";
 
 type AppState = "welcome" | "auth" | "dashboard";
 
@@ -47,7 +47,7 @@ export const ClearedMindApp = () => {
       );
     
     case "dashboard":
-      return <Dashboard userName={userName} />;
+      return <WellnessApp />;
     
     default:
       return <WelcomeScreen onGetStarted={handleGetStarted} />;
