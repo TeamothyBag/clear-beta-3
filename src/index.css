@@ -1,0 +1,209 @@
+@import url('https://fonts.googleapis.com/css2?family=Big+Caslon:wght@500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Cleared Mind Design System - Mental Health & Wellness App
+Nature-inspired, calming, therapeutic design focused on user well-being
+All colors MUST be HSL for consistency and accessibility
+*/
+
+@layer base {
+  :root {
+    /* Core Brand Colors - Nature-Inspired Mental Health Palette */
+    --background: 0 0% 100%;
+    --foreground: 28 12% 25%; /* Warm dark gray #574747 for gentle readability */
+    
+    /* Primary Green System - Growth, renewal, harmony */
+    --primary: 73 21% 51%; /* #91A56E - Main therapeutic green */
+    --primary-light: 76 40% 74%; /* #CDE0A4 - Fresh, healing light green */
+    --primary-deep: 314 85% 19%; /* #600E52 - Deep forest grounding */
+    --primary-foreground: 0 0% 98%;
+    
+    /* Therapeutic Neutrals */
+    --secondary: 38 5% 56%; /* #8F8884 - Sophisticated neutral */
+    --secondary-foreground: 28 12% 25%;
+    --muted: 60 9% 98%;
+    --muted-foreground: 38 5% 56%;
+    
+    /* Wellness Accent Colors */
+    --accent: 76 40% 74%; /* Light healing green */
+    --accent-foreground: 28 12% 25%;
+    
+    /* Calming UI Elements */
+    --card: 0 0% 100%;
+    --card-foreground: 28 12% 25%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 28 12% 25%;
+    
+    /* Gentle Interactions */
+    --border: 60 10% 91%;
+    --input: 60 10% 91%;
+    --ring: 73 21% 51%;
+    
+    /* Crisis/Alert Colors - Compassionate but clear */
+    --destructive: 0 65% 58%;
+    --destructive-foreground: 0 0% 98%;
+    --warning: 43 96% 56%;
+    --warning-foreground: 28 12% 25%;
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 98%;
+
+    --radius: 0.5rem;
+    
+    /* Sidebar for future use */
+    --sidebar-background: 60 9% 98%;
+    --sidebar-foreground: 28 12% 25%;
+    --sidebar-primary: 73 21% 51%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 76 40% 74%;
+    --sidebar-accent-foreground: 28 12% 25%;
+    --sidebar-border: 60 10% 91%;
+    --sidebar-ring: 73 21% 51%;
+  }
+
+  .dark {
+    /* Dark mode optimized for evening mental health sessions */
+    --background: 314 85% 8%; /* Deep forest night */
+    --foreground: 60 9% 95%;
+    
+    --primary: 76 40% 74%; /* Light green for dark mode visibility */
+    --primary-foreground: 28 12% 25%;
+    
+    --card: 314 85% 12%;
+    --card-foreground: 60 9% 95%;
+    
+    --popover: 314 85% 12%;
+    --popover-foreground: 60 9% 95%;
+    
+    --secondary: 28 12% 15%;
+    --secondary-foreground: 60 9% 95%;
+    
+    --muted: 28 12% 15%;
+    --muted-foreground: 38 5% 65%;
+    
+    --accent: 76 40% 74%;
+    --accent-foreground: 28 12% 25%;
+    
+    --destructive: 0 65% 58%;
+    --destructive-foreground: 60 9% 95%;
+    
+    --border: 28 12% 20%;
+    --input: 28 12% 20%;
+    --ring: 76 40% 74%;
+    
+    --sidebar-background: 314 85% 10%;
+    --sidebar-foreground: 60 9% 95%;
+    --sidebar-primary: 76 40% 74%;
+    --sidebar-primary-foreground: 28 12% 25%;
+    --sidebar-accent: 28 12% 15%;
+    --sidebar-accent-foreground: 60 9% 95%;
+    --sidebar-border: 28 12% 20%;
+    --sidebar-ring: 76 40% 74%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-family: 'Helvetica Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Big Caslon', 'Helvetica Neue', serif;
+  }
+}
+
+@layer components {
+  /* Mental Health UI Patterns */
+  .therapeutic-card {
+    @apply bg-card rounded-2xl shadow-[0_4px_20px_hsl(var(--primary)_/_0.1)] border border-border/50;
+    @apply transition-all duration-300 hover:shadow-[0_8px_30px_hsl(var(--primary)_/_0.15)];
+    @apply hover:scale-[1.02] hover:-translate-y-1;
+  }
+  
+  .calming-button {
+    @apply bg-gradient-to-r from-primary to-accent text-primary-foreground;
+    @apply rounded-full px-6 py-3 font-medium;
+    @apply transition-all duration-300 hover:shadow-lg;
+    @apply hover:scale-105 active:scale-95;
+  }
+  
+  .breathing-animation {
+    animation: breathe 4s ease-in-out infinite;
+  }
+  
+  .gentle-fade-in {
+    animation: gentleFadeIn 0.6s ease-out forwards;
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  
+  .wellness-gradient {
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+  }
+  
+  .forest-gradient {
+    background: linear-gradient(180deg, hsl(var(--primary-deep)), hsl(var(--primary)));
+  }
+  
+  .healing-overlay {
+    background: linear-gradient(45deg, hsl(var(--primary) / 0.1), hsl(var(--accent) / 0.1));
+  }
+  
+  .crisis-button {
+    @apply bg-destructive hover:bg-destructive/90 text-destructive-foreground;
+    @apply rounded-full px-6 py-4 font-semibold text-lg;
+    @apply shadow-lg hover:shadow-xl transition-all duration-200;
+    @apply border-2 border-destructive/20 hover:border-destructive/30;
+  }
+  
+  .meditation-button {
+    @apply bg-gradient-to-br from-accent to-primary text-foreground;
+    @apply rounded-2xl p-6 hover:shadow-[0_8px_30px_hsl(var(--primary)_/_0.12)];
+    @apply transition-all duration-500 hover:scale-105;
+    @apply border border-primary/20;
+  }
+}
+
+@layer utilities {
+  .font-caslon {
+    font-family: 'Big Caslon', 'Helvetica Neue', serif;
+  }
+  
+  .text-shadow-soft {
+    text-shadow: 0 2px 4px hsl(var(--primary) / 0.1);
+  }
+}
+
+/* Therapeutic Animations for Mental Wellness */
+@keyframes breathe {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.05); opacity: 1; }
+}
+
+@keyframes gentleFadeIn {
+  0% { 
+    opacity: 0; 
+    transform: translateY(20px); 
+  }
+  100% { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+@keyframes floatGentle {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pulseCalm {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
