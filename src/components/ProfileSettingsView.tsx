@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,106 +7,85 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { Avatar, AvatarContent, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { 
   User, Settings, Target, Trophy, Bell, Lock, Heart,
   Edit3, Save, Camera, Mail, Phone, MapPin, Calendar,
   Shield, Download, HelpCircle, LogOut, Star, Award,
   TrendingUp, Zap, CheckCircle, Activity
 } from "lucide-react";
-
-const wellnessGoals = [
-  {
-    id: 1,
-    title: "Daily Meditation",
-    target: 21,
-    current: 7,
-    unit: "days",
-    category: "mindfulness",
-    color: "primary"
-  },
-  {
-    id: 2,
-    title: "Exercise Weekly",
-    target: 3,
-    current: 2,
-    unit: "sessions",
-    category: "physical",
-    color: "success"
-  },
-  {
-    id: 3,
-    title: "Mood Tracking",
-    target: 30,
-    current: 14,
-    unit: "days",
-    category: "emotional",
-    color: "accent"
-  },
-  {
-    id: 4,
-    title: "Sleep Quality",
-    target: 8,
-    current: 6.5,
-    unit: "hours",
-    category: "rest",
-    color: "secondary"
-  }
-];
-
-const achievements = [
-  {
-    id: 1,
-    title: "First Steps",
-    description: "Completed your first meditation session",
-    icon: Star,
-    earned: true,
-    date: "2025-09-15"
-  },
-  {
-    id: 2,
-    title: "Week Warrior",
-    description: "Maintained a 7-day streak",
-    icon: Trophy,
-    earned: true,
-    date: "2025-09-20"
-  },
-  {
-    id: 3,
-    title: "Mood Master",
-    description: "Tracked mood for 14 consecutive days",
-    icon: Heart,
-    earned: true,
-    date: "2025-09-22"
-  },
-  {
-    id: 4,
-    title: "Mindful Month",
-    description: "Complete 30 meditation sessions",
-    icon: Award,
-    earned: false,
-    progress: 7
-  },
-  {
-    id: 5,
-    title: "Wellness Warrior",
-    description: "Reach all wellness goals for a month",
-    icon: Shield,
-    earned: false,
-    progress: 0
-  }
-];
+import { useAuth } from "@/contexts/AuthContext";
+import { useHabits } from "@/contexts/HabitContext";
+import { useMood } from "@/contexts/MoodContext";
+import { useMeditation } from "@/contexts/MeditationContext";
+import { useNotifications } from "@/contexts/NotificationContext";
 
 export const ProfileSettingsView = () => {
+  // Context hooks
+  const { state: authState, logout } = useAuth();
+  const { state: habitState, fetchHabits } = useHabits();
+  const { state: moodState, fetchMoodEntries } = useMood();
+  const { state: meditationState, fetchSessions } = useMeditation();
+  const { addNotification } = useNotifications();
+
+  // Mock data for missing contexts
+  const [mockAchievements] = useState([
+    {
+      _id: "1",
+      title: "First Steps",
+      description: "Completed your first meditation session",
+      type: "meditation",
+      earned: true,
+      earnedDate: "2025-09-15"
+    },
+    {
+      _id: "2",
+      title: "Week Warrior", 
+      description: "Maintained a 7-day streak",
+      type: "streak",
+      earned: true,
+      earnedDate: "2025-09-20"
+    },
+    {
+      _id: "3",
+      title: "Mood Master",
+      description: "Tracked mood for 14 consecutive days",
+      type: "mood", 
+      earned: true,
+      earnedDate: "2025-09-22"
+    }
+  ]);
+
+  const [mockGoals] = useState([
+    {
+      _id: "1",
+      title: "Daily Meditation",
+      category: "mindfulness",
+      targetValue: 21,
+      currentValue: 7,
+      unit: "days",
+      deadline: "2025-10-15"
+    },
+    {
+      _id: "2", 
+      title: "Mood Tracking",
+      category: "emotional",
+      targetValue: 30,
+      currentValue: 14,
+      unit: "days",
+      deadline: "2025-10-30"
+    }
+  ]);
+
+  // Local state
   const [activeTab, setActiveTab] = useState("profile");
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState({
-    name: "Alex Johnson",
-    email: "alex.johnson@email.com",
-    phone: "+1 (555) 123-4567",
-    location: "San Francisco, CA",
-    joinDate: "September 2025",
-    bio: "On a journey to better mental health and mindfulness. Finding peace one breath at a time."
+    name: authState.user?.profile ? `${authState.user.profile.firstName} ${authState.user.profile.lastName}` : "Welcome User",
+    email: authState.user?.email || "",
+    phone: "",
+    location: "",
+    bio: "On a journey to better mental health and mindfulness."
   });
 
   const [notifications, setNotifications] = useState({
@@ -123,24 +102,118 @@ export const ProfileSettingsView = () => {
     marketing: false
   });
 
-  const handleSaveProfile = () => {
-    setIsEditing(false);
-    // Save profile data
-    console.log("Saving profile:", profileData);
+  // Data is auto-loaded by respective providers, no need for duplicate calls
+  // useEffect removed to prevent redundant API calls
+
+  const handleSaveProfile = async () => {
+    try {
+      // Mock profile save since UserContext doesn't exist
+      setIsEditing(false);
+      
+      addNotification({
+        type: 'success',
+        title: 'Profile Updated',
+        message: 'Your profile has been successfully updated',
+        priority: 'medium'
+      });
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to update profile. Please try again.',
+        priority: 'medium'
+      });
+    }
   };
 
-  const toggleNotification = (key: string) => {
-    setNotifications(prev => ({
-      ...prev,
-      [key]: !prev[key as keyof typeof prev]
-    }));
+  const toggleNotification = async (key: string) => {
+    const newNotifications = {
+      ...notifications,
+      [key]: !notifications[key as keyof typeof notifications]
+    };
+    
+    setNotifications(newNotifications);
+    // Mock settings save
   };
 
-  const togglePrivacy = (key: string) => {
-    setPrivacy(prev => ({
-      ...prev,
-      [key]: !prev[key as keyof typeof prev]
-    }));
+  const togglePrivacy = async (key: string) => {
+    const newPrivacy = {
+      ...privacy,
+      [key]: !privacy[key as keyof typeof privacy]
+    };
+    
+    setPrivacy(newPrivacy);
+    // Mock settings save  
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await logout();
+      addNotification({
+        type: 'success',
+        title: 'Signed Out',
+        message: 'You have been successfully signed out',
+        priority: 'medium'
+      });
+    } catch (error) {
+      console.error('Error signing out:', error);
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to sign out. Please try again.',
+        priority: 'medium'
+      });
+    }
+  };
+
+  // Calculate stats from real data
+  const calculateStats = () => {
+    const meditationCount = meditationState.sessions?.length || 0;
+    const moodAverage = moodState.entries?.length ? 
+      moodState.entries.reduce((sum, entry) => sum + (entry.moodData?.primaryMood || 0), 0) / moodState.entries.length : 0;
+    const moodEntries = moodState.entries?.length || 0;
+    const sleepAverage = 7.5; // Mock sleep data
+    
+    return {
+      meditation: meditationCount,
+      mood: moodAverage.toFixed(1),
+      checkins: moodEntries,
+      sleep: `${sleepAverage}h`
+    };
+  };
+
+  const stats = calculateStats();
+
+  // Get current streak from mood data
+  const getCurrentStreak = () => {
+    if (!moodState.entries || moodState.entries.length === 0) return 0;
+    
+    let streak = 0;
+    const today = new Date();
+    
+    for (let i = 0; i < 30; i++) {
+      const checkDate = new Date(today);
+      checkDate.setDate(today.getDate() - i);
+      
+      const hasEntry = moodState.entries.some(entry => {
+        const entryDate = new Date(entry.metadata?.loggedAt || new Date());
+        return entryDate.toDateString() === checkDate.toDateString();
+      });
+      
+      if (hasEntry) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+    
+    return streak;
+  };
+
+  // Get earned achievements count
+  const getEarnedAchievements = () => {
+    return mockAchievements.filter(a => a.earned).length;
   };
 
   return (
@@ -168,9 +241,13 @@ export const ProfileSettingsView = () => {
                 <div className="flex flex-col items-center space-y-4">
                   <div className="relative">
                     <Avatar className="w-20 h-20">
-                      <AvatarFallback className="bg-primary/20 text-primary text-xl">
-                        {profileData.name.split(' ').map(n => n[0]).join('')}
-                      </AvatarFallback>
+                      {authState.user?.profile?.avatar ? (
+                        <AvatarImage src={authState.user.profile.avatar} alt={profileData.name} />
+                      ) : (
+                        <AvatarFallback className="bg-primary/20 text-primary text-xl">
+                          {profileData.name ? profileData.name.split(' ').map(n => n[0]).join('') : 'U'}
+                        </AvatarFallback>
+                      )}
                     </Avatar>
                     <Button 
                       size="sm" 
@@ -181,17 +258,27 @@ export const ProfileSettingsView = () => {
                     </Button>
                   </div>
                   <div className="text-center">
-                    <h2 className="font-caslon text-xl text-foreground">{profileData.name}</h2>
-                    <p className="text-muted-foreground text-sm">Member since {profileData.joinDate}</p>
+                    <h2 className="font-caslon text-xl text-foreground">
+                      {profileData.name || "Welcome"}
+                    </h2>
+                    <p className="text-muted-foreground text-sm">
+                      Member since {authState.user?.metadata?.joinedAt ? 
+                        new Date(authState.user.metadata.joinedAt).toLocaleDateString('en-US', { 
+                          month: 'long', 
+                          year: 'numeric' 
+                        }) : 
+                        'Recently'
+                      }
+                    </p>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Badge variant="outline" className="text-xs">
                       <Activity className="w-3 h-3 mr-1" />
-                      7-day streak
+                      {getCurrentStreak()}-day streak
                     </Badge>
                     <Badge variant="outline" className="text-xs">
                       <Star className="w-3 h-3 mr-1" />
-                      3 achievements
+                      {getEarnedAchievements()} achievements
                     </Badge>
                   </div>
                 </div>
@@ -284,19 +371,19 @@ export const ProfileSettingsView = () => {
               <CardContent>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-primary">12</div>
+                    <div className="text-2xl font-bold text-primary">{stats.meditation}</div>
                     <p className="text-xs text-muted-foreground">Meditation Sessions</p>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-success">8.2</div>
+                    <div className="text-2xl font-bold text-success">{stats.mood}</div>
                     <p className="text-xs text-muted-foreground">Avg Mood Score</p>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-accent">18</div>
+                    <div className="text-2xl font-bold text-accent">{stats.checkins}</div>
                     <p className="text-xs text-muted-foreground">Check-ins</p>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-secondary">7.5h</div>
+                    <div className="text-2xl font-bold text-secondary">{stats.sleep}</div>
                     <p className="text-xs text-muted-foreground">Avg Sleep</p>
                   </div>
                 </div>
@@ -315,32 +402,46 @@ export const ProfileSettingsView = () => {
                 <CardDescription>Track your progress towards better health</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {wellnessGoals.map((goal) => {
-                    const progress = (goal.current / goal.target) * 100;
-                    return (
-                      <div key={goal.id} className="p-4 bg-muted/30 rounded-xl">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium text-foreground">{goal.title}</h4>
-                          <Badge variant="outline" className="text-xs capitalize">
-                            {goal.category}
-                          </Badge>
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground">
-                              {goal.current} / {goal.target} {goal.unit}
-                            </span>
-                            <span className="font-medium text-foreground">
-                              {Math.round(progress)}%
-                            </span>
+                {mockGoals && mockGoals.length > 0 ? (
+                  <div className="space-y-4">
+                    {mockGoals.map((goal) => {
+                      const progress = (goal.currentValue / goal.targetValue) * 100;
+                      return (
+                        <div key={goal._id} className="p-4 bg-muted/30 rounded-xl">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-medium text-foreground">{goal.title}</h4>
+                            <Badge variant="outline" className="text-xs capitalize">
+                              {goal.category}
+                            </Badge>
                           </div>
-                          <Progress value={progress} className="h-2" />
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">
+                                {goal.currentValue} / {goal.targetValue} {goal.unit}
+                              </span>
+                              <span className="font-medium text-foreground">
+                                {Math.round(progress)}%
+                              </span>
+                            </div>
+                            <Progress value={Math.min(progress, 100)} className="h-2" />
+                          </div>
+                          {goal.deadline && (
+                            <p className="text-xs text-muted-foreground mt-2">
+                              Due: {new Date(goal.deadline).toLocaleDateString()}
+                            </p>
+                          )}
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">No goals set yet</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Set your wellness goals to track progress
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -352,20 +453,43 @@ export const ProfileSettingsView = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  <div className="p-3 bg-primary/10 rounded-xl">
-                    <p className="text-sm font-medium text-foreground mb-1">🎯 On Track!</p>
-                    <p className="text-xs text-muted-foreground">
-                      You're making great progress on your meditation goal. Keep it up!
-                    </p>
+                {mockGoals && mockGoals.length > 0 ? (
+                  <div className="space-y-3">
+                    {mockGoals
+                      .filter(goal => {
+                        const progress = (goal.currentValue / goal.targetValue) * 100;
+                        return progress >= 80; // On track goals
+                      })
+                      .slice(0, 1)
+                      .map(goal => (
+                        <div key={goal._id} className="p-3 bg-primary/10 rounded-xl">
+                          <p className="text-sm font-medium text-foreground mb-1">🎯 On Track!</p>
+                          <p className="text-xs text-muted-foreground">
+                            You're making great progress on your {goal.title.toLowerCase()} goal. Keep it up!
+                          </p>
+                        </div>
+                      ))}
+                    
+                    {mockGoals
+                      .filter(goal => {
+                        const progress = (goal.currentValue / goal.targetValue) * 100;
+                        return progress < 80 && progress > 0;
+                      })
+                      .slice(0, 1)
+                      .map(goal => (
+                        <div key={goal._id} className="p-3 bg-warning/10 rounded-xl">
+                          <p className="text-sm font-medium text-foreground mb-1">💪 Push Forward</p>
+                          <p className="text-xs text-muted-foreground">
+                            You need {goal.targetValue - goal.currentValue} more {goal.unit} to reach your {goal.title.toLowerCase()} goal!
+                          </p>
+                        </div>
+                      ))}
                   </div>
-                  <div className="p-3 bg-warning/10 rounded-xl">
-                    <p className="text-sm font-medium text-foreground mb-1">💪 Push Forward</p>
-                    <p className="text-xs text-muted-foreground">
-                      One more exercise session this week to reach your goal!
-                    </p>
-                  </div>
-                </div>
+                ) : (
+                  <p className="text-muted-foreground text-sm">
+                    Set some goals to see personalized insights and motivation!
+                  </p>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -381,57 +505,77 @@ export const ProfileSettingsView = () => {
                 <CardDescription>Celebrate your wellness milestones</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {achievements.map((achievement) => {
-                    const Icon = achievement.icon;
-                    return (
-                      <div 
-                        key={achievement.id} 
-                        className={`p-4 rounded-xl border transition-all ${
-                          achievement.earned 
-                            ? 'bg-primary/10 border-primary/20' 
-                            : 'bg-muted/30 border-border'
-                        }`}
-                      >
-                        <div className="flex items-start space-x-3">
-                          <div className={`p-2 rounded-full ${
-                            achievement.earned ? 'bg-primary/20' : 'bg-muted/50'
-                          }`}>
-                            <Icon className={`w-5 h-5 ${
-                              achievement.earned ? 'text-primary' : 'text-muted-foreground'
-                            }`} />
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between mb-1">
-                              <h4 className="font-medium text-foreground">{achievement.title}</h4>
-                              {achievement.earned && (
-                                <CheckCircle className="w-4 h-4 text-success" />
+                {mockAchievements && mockAchievements.length > 0 ? (
+                  <div className="space-y-3">
+                    {mockAchievements.map((achievement) => {
+                      // Map achievement types to icons
+                      const getAchievementIcon = (type: string) => {
+                        switch (type) {
+                          case 'meditation': return Star;
+                          case 'streak': return Trophy;
+                          case 'mood': return Heart;
+                          case 'goals': return Award;
+                          case 'wellness': return Shield;
+                          default: return CheckCircle;
+                        }
+                      };
+                      
+                      const Icon = getAchievementIcon(achievement.type || 'default');
+                      
+                      return (
+                        <div 
+                          key={achievement._id} 
+                          className={`p-4 rounded-xl border transition-all ${
+                            achievement.earned 
+                              ? 'bg-primary/10 border-primary/20' 
+                              : 'bg-muted/30 border-border'
+                          }`}
+                        >
+                          <div className="flex items-start space-x-3">
+                            <div className={`p-2 rounded-full ${
+                              achievement.earned ? 'bg-primary/20' : 'bg-muted/50'
+                            }`}>
+                              <Icon className={`w-5 h-5 ${
+                                achievement.earned ? 'text-primary' : 'text-muted-foreground'
+                              }`} />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between mb-1">
+                                <h4 className="font-medium text-foreground">{achievement.title}</h4>
+                                {achievement.earned && (
+                                  <CheckCircle className="w-4 h-4 text-success" />
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground mb-2">
+                                {achievement.description}
+                              </p>
+                              {achievement.earned ? (
+                                <p className="text-xs text-success">
+                                  Earned on {achievement.earnedDate ? 
+                                    new Date(achievement.earnedDate).toLocaleDateString() :
+                                    'Recently'
+                                  }
+                                </p>
+                              ) : (
+                                <p className="text-xs text-muted-foreground">
+                                  Not yet earned
+                                </p>
                               )}
                             </div>
-                            <p className="text-sm text-muted-foreground mb-2">
-                              {achievement.description}
-                            </p>
-                            {achievement.earned ? (
-                              <p className="text-xs text-success">
-                                Earned on {achievement.date}
-                              </p>
-                            ) : (
-                              achievement.progress !== undefined && (
-                                <div className="space-y-1">
-                                  <div className="flex items-center justify-between text-xs">
-                                    <span className="text-muted-foreground">Progress</span>
-                                    <span className="text-foreground">{achievement.progress}/30</span>
-                                  </div>
-                                  <Progress value={(achievement.progress / 30) * 100} className="h-1" />
-                                </div>
-                              )
-                            )}
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Trophy className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+                    <p className="text-muted-foreground">No achievements yet</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Start your wellness journey to earn achievements!
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -528,7 +672,7 @@ export const ProfileSettingsView = () => {
                     <Shield className="w-4 h-4 mr-3" />
                     Privacy Policy
                   </Button>
-                  <Button variant="destructive" className="w-full justify-start">
+                  <Button variant="destructive" className="w-full justify-start" onClick={handleSignOut}>
                     <LogOut className="w-4 h-4 mr-3" />
                     Sign Out
                   </Button>

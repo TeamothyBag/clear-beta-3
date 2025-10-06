@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,13 +11,22 @@ import {
   TrendingUp, TrendingDown, BarChart3, PlusCircle,
   Sun, Moon, Cloud, CloudRain, Edit3, Save, X
 } from "lucide-react";
+import { useMood } from "@/contexts/MoodContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNotifications } from "@/contexts/NotificationContext";
+import { useMoodTracker } from "@/hooks/wellness";
 
 const moodOptions = [
-  { icon: Smile, label: "Excellent", emoji: "😊", value: 5, color: "success" },
-  { icon: Smile, label: "Good", emoji: "🙂", value: 4, color: "primary" },
-  { icon: Meh, label: "Okay", emoji: "😐", value: 3, color: "warning" },
-  { icon: Frown, label: "Low", emoji: "😔", value: 2, color: "secondary" },
-  { icon: Frown, label: "Difficult", emoji: "😢", value: 1, color: "destructive" },
+  { icon: Frown, label: "Very Difficult", emoji: "�", value: 1, color: "destructive" },
+  { icon: Frown, label: "Difficult", emoji: "�", value: 2, color: "destructive" },
+  { icon: Frown, label: "Low", emoji: "�", value: 3, color: "secondary" },
+  { icon: Meh, label: "Below Average", emoji: "😐", value: 4, color: "secondary" },
+  { icon: Meh, label: "Okay", emoji: "😐", value: 5, color: "warning" },
+  { icon: Meh, label: "Slightly Better", emoji: "🙂", value: 6, color: "warning" },
+  { icon: Smile, label: "Good", emoji: "�", value: 7, color: "primary" },
+  { icon: Smile, label: "Very Good", emoji: "😄", value: 8, color: "primary" },
+  { icon: Smile, label: "Great", emoji: "😁", value: 9, color: "success" },
+  { icon: Smile, label: "Excellent", emoji: "🤩", value: 10, color: "success" },
 ];
 
 const moodFactors = [
@@ -28,21 +37,23 @@ const moodFactors = [
   { id: "weather", label: "Weather Impact", icon: CloudRain },
 ];
 
-const mockMoodHistory = [
-  { date: "2025-09-22", mood: 4, note: "Had a good therapy session today", factors: ["sleep", "social"] },
-  { date: "2025-09-21", mood: 3, note: "Feeling okay, work was stressful", factors: ["stress"] },
-  { date: "2025-09-20", mood: 5, note: "Great day! Went for a walk in the park", factors: ["exercise", "weather"] },
-  { date: "2025-09-19", mood: 2, note: "Tough day, feeling overwhelmed", factors: ["stress", "sleep"] },
-  { date: "2025-09-18", mood: 4, note: "Better day, met with friends", factors: ["social"] },
-];
-
 export const DetailedMoodView = () => {
+  // Context hooks
+  const { state: authState } = useAuth();
+  const { state: moodState, createMoodEntry, fetchMoodEntries, fetchMoodInsights } = useMood();
+  const { addNotification } = useNotifications();
+  const { moodStats, recentMoods } = useMoodTracker();
+
+  // Local state
   const [selectedMood, setSelectedMood] = useState<number | null>(null);
   const [moodNote, setMoodNote] = useState("");
   const [selectedFactors, setSelectedFactors] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState("log");
+
+  // Data is auto-loaded by MoodProvider, no need for duplicate calls
+  // useEffect removed to prevent redundant API calls
 
   const handleMoodSelect = (value: number) => {
     setSelectedMood(value);
@@ -56,251 +67,422 @@ export const DetailedMoodView = () => {
     );
   };
 
-  const saveMoodEntry = () => {
+  const saveMoodEntry = async () => {
     if (selectedMood) {
-      console.log("Saving mood entry:", {
-        date: selectedDate,
-        mood: selectedMood,
-        note: moodNote,
-        factors: selectedFactors
-      });
-      // Reset form
-      setSelectedMood(null);
-      setMoodNote("");
-      setSelectedFactors([]);
-      setIsEditing(false);
+      try {
+        const moodData = {
+          moodData: {
+            primaryMood: selectedMood, // Now using 1-10 scale
+            emotions: selectedFactors, // Keep as strings for simplicity
+            energyLevel: selectedMood, // Map mood to energy level
+            stressLevel: Math.max(1, 11 - selectedMood), // Inverse relationship
+            anxietyLevel: Math.max(1, 11 - selectedMood) // Inverse relationship
+          },
+          metadata: {
+            loggedAt: selectedDate.toISOString(),
+            factors: selectedFactors
+          },
+          notes: {
+            userNotes: moodNote,
+            additionalContext: ""
+          }
+        };
+
+        await createMoodEntry(moodData);
+        
+        addNotification({
+          type: 'success',
+          title: 'Mood Logged',
+          message: 'Your mood has been successfully recorded'
+        });
+
+        // Reset form
+        setSelectedMood(null);
+        setMoodNote("");
+        setSelectedFactors([]);
+        setSelectedDate(new Date());
+        setIsEditing(false);
+        
+        // Refresh data
+        fetchMoodEntries();
+        fetchMoodInsights();
+      } catch (error) {
+        console.error('Error saving mood entry:', error);
+        addNotification({
+          type: 'error',
+          title: 'Error',
+          message: 'Failed to save mood entry. Please try again.'
+        });
+      }
     }
   };
 
-  const cancelEdit = () => {
+  const clearForm = () => {
     setSelectedMood(null);
     setMoodNote("");
     setSelectedFactors([]);
+    setSelectedDate(new Date());
     setIsEditing(false);
   };
 
-  const averageMood = mockMoodHistory.reduce((sum, entry) => sum + entry.mood, 0) / mockMoodHistory.length;
-  const moodTrend = mockMoodHistory[0]?.mood > mockMoodHistory[1]?.mood ? "up" : "down";
+  const getMoodEmoji = (moodValue: number) => {
+    const mood = moodOptions.find(m => m.value === moodValue);
+    return mood ? mood.emoji : "😐";
+  };
+
+  const getMoodLabel = (moodValue: number) => {
+    const mood = moodOptions.find(m => m.value === moodValue);
+    return mood ? mood.label : "Unknown";
+  };
+
+  const calculateMoodTrend = () => {
+    if (!moodState.entries || moodState.entries.length < 2) return 0;
+    
+    const sortedEntries = [...moodState.entries]
+      .sort((a, b) => {
+        const dateA = new Date(a.createdAt || new Date()).getTime();
+        const dateB = new Date(b.createdAt || new Date()).getTime();
+        return dateB - dateA;
+      });
+    
+    const recent = sortedEntries.slice(0, 3);
+    const previous = sortedEntries.slice(3, 6);
+    
+    if (recent.length === 0 || previous.length === 0) return 0;
+    
+    // Use the actual backend field 'mood' instead of 'moodData.primaryMood'
+    const recentAvg = recent.reduce((sum, entry) => sum + (entry.mood || 0), 0) / recent.length;
+    const previousAvg = previous.reduce((sum, entry) => sum + (entry.mood || 0), 0) / previous.length;
+    
+    return recentAvg - previousAvg;
+  };
+
+  const moodTrend = calculateMoodTrend();
 
   return (
-    <div className="min-h-screen bg-background p-4 pb-20">
-      <div className="max-w-md mx-auto space-y-6">
-        {/* Header */}
-        <div className="text-center space-y-2">
-          <h1 className="font-caslon text-2xl text-foreground">Mood Insights</h1>
-          <p className="text-muted-foreground">Track your emotional wellbeing journey</p>
+    <div className="space-y-6 p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Mood Tracker</h1>
+          <p className="text-muted-foreground">Track and understand your emotional patterns</p>
         </div>
+        <div className="flex items-center gap-2">
+          {moodTrend > 0 && (
+            <Badge variant="outline" className="flex items-center gap-1 text-green-600">
+              <TrendingUp className="w-3 h-3" />
+              Improving
+            </Badge>
+          )}
+          {moodTrend < 0 && (
+            <Badge variant="outline" className="flex items-center gap-1 text-red-600">
+              <TrendingDown className="w-3 h-3" />
+              Declining
+            </Badge>
+          )}
+          {moodTrend === 0 && (
+            <Badge variant="outline" className="flex items-center gap-1">
+              <BarChart3 className="w-3 h-3" />
+              Stable
+            </Badge>
+          )}
+        </div>
+      </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="log">Log Mood</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
-            <TabsTrigger value="insights">Insights</TabsTrigger>
-          </TabsList>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="log">Log Mood</TabsTrigger>
+          <TabsTrigger value="history">History</TabsTrigger>
+          <TabsTrigger value="insights">Insights</TabsTrigger>
+        </TabsList>
 
-          {/* Mood Logging Tab */}
-          <TabsContent value="log" className="space-y-6">
-            <Card className="therapeutic-card">
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Heart className="w-5 h-5 mr-2 text-primary" />
-                  How are you feeling?
-                </CardTitle>
-                <CardDescription>
-                  Take a moment to check in with yourself
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Mood Selection */}
-                <div className="grid grid-cols-5 gap-2">
+        <TabsContent value="log" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CalendarIcon className="w-5 h-5" />
+                How are you feeling today?
+              </CardTitle>
+              <CardDescription>
+                Take a moment to reflect on your current emotional state
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Mood Selection */}
+              <div className="space-y-3">
+                <h3 className="font-medium">Your Mood (1-10 scale)</h3>
+                <div className="grid grid-cols-5 gap-3">
                   {moodOptions.map((mood) => {
-                    const Icon = mood.icon;
+                    const IconComponent = mood.icon;
                     return (
                       <button
                         key={mood.value}
                         onClick={() => handleMoodSelect(mood.value)}
-                        className={`relative p-3 rounded-2xl transition-all duration-300 ${
+                        className={`p-4 rounded-lg border-2 transition-all ${
                           selectedMood === mood.value
-                            ? 'bg-primary/20 scale-110 shadow-lg border-2 border-primary'
-                            : 'bg-muted/50 hover:bg-muted hover:scale-105'
+                            ? "border-primary bg-primary/10"
+                            : "border-border hover:border-primary/50"
                         }`}
                       >
-                        <div className="text-xl mb-1">{mood.emoji}</div>
-                        <p className="text-xs font-medium text-foreground">{mood.label}</p>
+                        <div className="text-center space-y-2">
+                          <div className="text-2xl">{mood.emoji}</div>
+                          <IconComponent className="w-4 h-4 mx-auto" />
+                          <p className="text-xs font-medium">{mood.value}</p>
+                          <p className="text-xs text-muted-foreground">{mood.label}</p>
+                        </div>
                       </button>
                     );
                   })}
                 </div>
+              </div>
 
-                {selectedMood && (
-                  <>
-                    {/* Mood Factors */}
-                    <div className="space-y-3">
-                      <h4 className="font-medium text-foreground">What's influencing your mood?</h4>
-                      <div className="grid grid-cols-2 gap-2">
-                        {moodFactors.map((factor) => {
-                          const Icon = factor.icon;
-                          const isSelected = selectedFactors.includes(factor.id);
-                          return (
-                            <button
-                              key={factor.id}
-                              onClick={() => toggleFactor(factor.id)}
-                              className={`p-3 rounded-xl transition-all duration-200 text-left ${
-                                isSelected
-                                  ? 'bg-primary/20 border-2 border-primary text-primary'
-                                  : 'bg-muted/30 border border-border hover:bg-muted/50'
-                              }`}
-                            >
-                              <Icon className="w-4 h-4 mb-1" />
-                              <p className="text-xs font-medium">{factor.label}</p>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Mood Note */}
-                    <div className="space-y-2">
-                      <h4 className="font-medium text-foreground">Add a note (optional)</h4>
-                      <Textarea
-                        placeholder="How was your day? What happened?"
-                        value={moodNote}
-                        onChange={(e) => setMoodNote(e.target.value)}
-                        className="min-h-[80px] resize-none"
-                      />
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex space-x-3">
-                      <Button onClick={saveMoodEntry} className="calming-button flex-1">
-                        <Save className="w-4 h-4 mr-2" />
-                        Save Entry
-                      </Button>
-                      <Button variant="outline" onClick={cancelEdit}>
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* History Tab */}
-          <TabsContent value="history" className="space-y-4">
-            <Card className="therapeutic-card">
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <CalendarIcon className="w-5 h-5 mr-2 text-primary" />
-                  Mood History
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {mockMoodHistory.map((entry, index) => {
-                    const mood = moodOptions.find(m => m.value === entry.mood)!;
+              {/* Contributing Factors */}
+              <div className="space-y-3">
+                <h3 className="font-medium">Contributing Factors</h3>
+                <p className="text-sm text-muted-foreground">
+                  What might be influencing your mood today?
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {moodFactors.map((factor) => {
+                    const IconComponent = factor.icon;
                     return (
-                      <div key={index} className="flex items-start space-x-3 p-3 bg-muted/30 rounded-xl">
-                        <div className="text-2xl">{mood.emoji}</div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-1">
-                            <p className="font-medium text-foreground">{mood.label}</p>
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(entry.date).toLocaleDateString()}
-                            </span>
-                          </div>
-                          {entry.note && (
-                            <p className="text-sm text-muted-foreground mb-2">{entry.note}</p>
-                          )}
-                          <div className="flex flex-wrap gap-1">
-                            {entry.factors.map(factorId => {
-                              const factor = moodFactors.find(f => f.id === factorId);
-                              return (
-                                <Badge key={factorId} variant="outline" className="text-xs">
-                                  {factor?.label}
-                                </Badge>
-                              );
-                            })}
-                          </div>
+                      <button
+                        key={factor.id}
+                        onClick={() => toggleFactor(factor.id)}
+                        className={`p-3 rounded-lg border-2 transition-all text-left ${
+                          selectedFactors.includes(factor.id)
+                            ? "border-primary bg-primary/10"
+                            : "border-border hover:border-primary/50"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <IconComponent className="w-4 h-4" />
+                          <span className="text-sm font-medium">{factor.label}</span>
                         </div>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              </div>
 
-          {/* Insights Tab */}
-          <TabsContent value="insights" className="space-y-4">
-            {/* Summary Stats */}
-            <div className="grid grid-cols-2 gap-4">
-              <Card className="therapeutic-card">
-                <CardContent className="p-4 text-center">
-                  <div className="text-2xl font-bold text-primary mb-1">
-                    {averageMood.toFixed(1)}
-                  </div>
-                  <p className="text-sm text-muted-foreground">Avg Mood</p>
-                  <p className="text-xs text-muted-foreground">Last 7 days</p>
-                </CardContent>
-              </Card>
-              
-              <Card className="therapeutic-card">
-                <CardContent className="p-4 text-center">
-                  <div className={`text-2xl mb-1 ${moodTrend === 'up' ? 'text-success' : 'text-warning'}`}>
-                    {moodTrend === 'up' ? <TrendingUp className="w-6 h-6 mx-auto" /> : <TrendingDown className="w-6 h-6 mx-auto" />}
-                  </div>
-                  <p className="text-sm text-muted-foreground">Trend</p>
-                  <p className="text-xs text-muted-foreground">This week</p>
-                </CardContent>
-              </Card>
-            </div>
+              {/* Note */}
+              <div className="space-y-3">
+                <h3 className="font-medium">Additional Notes</h3>
+                <Textarea
+                  placeholder="Tell us more about how you're feeling today..."
+                  value={moodNote}
+                  onChange={(e) => setMoodNote(e.target.value)}
+                  className="min-h-[100px]"
+                />
+              </div>
 
-            {/* Insights */}
-            <Card className="therapeutic-card">
+              {/* Date Selection */}
+              <div className="space-y-3">
+                <h3 className="font-medium">Date</h3>
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => date && setSelectedDate(date)}
+                  className="rounded-md border"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <Button 
+                  onClick={saveMoodEntry} 
+                  disabled={!selectedMood || moodState.isSubmitting}
+                  className="flex-1"
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  {moodState.isSubmitting ? 'Saving...' : 'Save Mood Entry'}
+                </Button>
+                <Button variant="outline" onClick={clearForm}>
+                  <X className="w-4 h-4 mr-2" />
+                  Clear
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="history" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Mood History</CardTitle>
+              <CardDescription>Your mood entries over time</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {moodState.isLoading ? (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">Loading mood history...</p>
+                </div>
+              ) : moodState.entries && moodState.entries.length > 0 ? (
+                <div className="space-y-4">
+                  {moodState.entries
+                    .sort((a, b) => {
+                      const dateA = new Date(a.createdAt || new Date()).getTime();
+                      const dateB = new Date(b.createdAt || new Date()).getTime();
+                      return dateB - dateA;
+                    })
+                    .map((entry, index) => {
+                      // Use backend structure: entry.mood instead of entry.moodData.primaryMood
+                      const moodValue = entry.mood || 5;
+                      const mood = moodOptions.find(m => m.value === moodValue);
+                      
+                      return (
+                        <div key={entry._id || entry.id || index} className="p-4 border rounded-lg">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-3">
+                              <span className="text-xl">{getMoodEmoji(moodValue)}</span>
+                              <div>
+                                <p className="font-medium">{getMoodLabel(moodValue)}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {new Date(entry.createdAt || new Date()).toLocaleDateString()}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium">{moodValue}/10</span>
+                              <Progress value={moodValue * 10} className="w-16" />
+                            </div>
+                          </div>
+                          
+                          {entry.notes && (
+                            <p className="text-sm text-muted-foreground mb-2">{entry.notes}</p>
+                          )}
+                          
+                          {entry.emotions && entry.emotions.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {entry.emotions.map((emotion, emotionIndex) => {
+                                const emotionText = typeof emotion === 'string' 
+                                  ? emotion 
+                                  : emotion.name || 'Unknown';
+                                return (
+                                  <Badge key={emotionIndex} variant="outline" className="text-xs">
+                                    {emotionText}
+                                  </Badge>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">No mood entries yet</p>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setActiveTab("log")}
+                    className="mt-2"
+                  >
+                    <PlusCircle className="w-4 h-4 mr-2" />
+                    Log Your First Mood
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="insights" className="space-y-6">
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card>
               <CardHeader>
-                <CardTitle className="flex items-center">
-                  <BarChart3 className="w-5 h-5 mr-2 text-primary" />
-                  Patterns & Insights
-                </CardTitle>
+                <CardTitle>Mood Overview</CardTitle>
+                <CardDescription>Your emotional patterns</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="p-3 bg-primary/10 rounded-xl">
-                    <p className="text-sm font-medium text-foreground mb-1">💡 Pattern Detected</p>
-                    <p className="text-xs text-muted-foreground">
-                      Your mood tends to be higher on days when you exercise and get good sleep.
-                    </p>
-                  </div>
-                  
-                  <div className="p-3 bg-accent/10 rounded-xl">
-                    <p className="text-sm font-medium text-foreground mb-1">🌱 Growth Opportunity</p>
-                    <p className="text-xs text-muted-foreground">
-                      Consider adding more social activities on challenging days - they seem to help boost your mood.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Factor Impact */}
-                <div className="space-y-2">
-                  <h4 className="font-medium text-foreground">Factor Impact</h4>
-                  {moodFactors.slice(0, 3).map((factor) => (
-                    <div key={factor.id} className="flex items-center justify-between">
-                      <span className="text-sm text-foreground">{factor.label}</span>
-                      <div className="flex items-center space-x-2">
-                        <Progress value={Math.random() * 100} className="w-16 h-2" />
-                        <span className="text-xs text-muted-foreground">
-                          {Math.floor(Math.random() * 30 + 60)}%
-                        </span>
+                {moodState.insights || moodState.analytics || moodState.entries?.length > 0 ? (
+                  <>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Average Mood</span>
+                        <div className="flex items-center gap-2">
+                          {(() => {
+                            // Calculate average from actual entries if insights not available
+                            const avgMood = moodState.insights?.averageMood || 
+                                          moodState.analytics?.averageMood || 
+                                          (moodState.entries?.length > 0 
+                                            ? moodState.entries.reduce((sum, entry) => sum + (entry.mood || 0), 0) / moodState.entries.length
+                                            : 5);
+                            return (
+                              <>
+                                <span className="text-lg">{getMoodEmoji(Math.round(avgMood))}</span>
+                                <span className="font-medium">{avgMood.toFixed(1)}/10</span>
+                              </>
+                            );
+                          })()}
+                        </div>
                       </div>
+                      <Progress value={(() => {
+                        const avgMood = moodState.insights?.averageMood || 
+                                      moodState.analytics?.averageMood || 
+                                      (moodState.entries?.length > 0 
+                                        ? moodState.entries.reduce((sum, entry) => sum + (entry.mood || 0), 0) / moodState.entries.length
+                                        : 5);
+                        return avgMood * 10;
+                      })()} />
+                    
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Total Entries</span>
+                      <span className="font-medium">{(moodState.insights?.totalEntries || moodState.analytics?.totalEntries) || moodState.entries?.length || 0}</span>
                     </div>
-                  ))}
-                </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Streak</span>
+                      <span className="font-medium">{(moodState.insights?.currentStreak || moodState.analytics?.currentStreak) || 0} days</span>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-muted-foreground">No analytics available yet</p>
+                )}
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Trends</CardTitle>
+                <CardDescription>How you've been feeling lately</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {moodState.entries && moodState.entries.length >= 2 ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      {moodTrend > 0.5 && (
+                        <>
+                          <TrendingUp className="w-4 h-4 text-green-600" />
+                          <span className="text-sm text-green-600">Your mood is improving</span>
+                        </>
+                      )}
+                      {moodTrend < -0.5 && (
+                        <>
+                          <TrendingDown className="w-4 h-4 text-red-600" />
+                          <span className="text-sm text-red-600">Your mood has been declining</span>
+                        </>
+                      )}
+                      {Math.abs(moodTrend) <= 0.5 && (
+                        <>
+                          <BarChart3 className="w-4 h-4 text-blue-600" />
+                          <span className="text-sm text-blue-600">Your mood is stable</span>
+                        </>
+                      )}
+                    </div>
+                    
+                    <div className="text-sm text-muted-foreground">
+                      Based on your last {Math.min(moodState.entries.length, 6)} entries
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">
+                    Add more mood entries to see trends and insights
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

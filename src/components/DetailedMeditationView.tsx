@@ -10,6 +10,10 @@ import {
   Clock, Trophy, Star, Flame, Calendar, Download, Settings,
   Wind, Waves, Mountain, TreePine, Sun, Moon
 } from "lucide-react";
+import { useMeditation } from "@/contexts/MeditationContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNotifications } from "@/contexts/NotificationContext";
+import { useMeditationTracker } from "@/hooks/wellness";
 import meditationZen from "@/assets/meditation-zen.jpg";
 
 const meditationTypes = [
@@ -94,6 +98,13 @@ const guidedSessions = [
 ];
 
 export const DetailedMeditationView = () => {
+  // Context hooks
+  const { state: authState } = useAuth();
+  const { state: meditationState, startSession, completeSession, fetchGuidedContent, fetchSessions, fetchStats } = useMeditation();
+  const { addNotification } = useNotifications();
+  const { meditationStats, streakData } = useMeditationTracker();
+
+  // Local state
   const [isPlaying, setIsPlaying] = useState(false);
   const [selectedType, setSelectedType] = useState("breathing");
   const [duration, setDuration] = useState(5);
@@ -102,6 +113,10 @@ export const DetailedMeditationView = () => {
   const [selectedSound, setSelectedSound] = useState("silence");
   const [volume, setVolume] = useState([50]);
   const [activeTab, setActiveTab] = useState("practice");
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+
+  // Data is auto-loaded by MeditationProvider, no need for duplicate calls
+  // useEffect removed to prevent redundant API calls
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -111,6 +126,7 @@ export const DetailedMeditationView = () => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
             setIsPlaying(false);
+            handleSessionComplete();
             return duration * 60;
           }
           return prev - 1;
@@ -136,23 +152,131 @@ export const DetailedMeditationView = () => {
   const progress = ((duration * 60 - timeLeft) / (duration * 60)) * 100;
   const selectedMeditation = meditationTypes.find(type => type.id === selectedType)!;
 
-  const handlePlayPause = () => {
-    setIsPlaying(!isPlaying);
+  const handlePlayPause = async () => {
+    if (!isPlaying) {
+      // Start new session
+      try {
+        const sessionData = {
+          userId: authState.user?.id || '',
+          session: {
+            type: selectedType,
+            plannedDuration: duration * 60,
+            actualDuration: 0,
+            completed: false
+          },
+          experience: {
+            difficulty: 3,
+            enjoyment: 3,
+            effectiveness: 3,
+            distractionLevel: 2,
+            notes: ''
+          },
+          environment: {
+            location: 'home' as const,
+            ambientSound: selectedSound !== 'none',
+            interruptions: 0,
+            timeOfDay: new Date().getHours() < 12 ? 'morning' as const : 
+                      new Date().getHours() < 17 ? 'afternoon' as const : 'evening' as const
+          },
+          ai: {
+            recommendations: []
+          },
+          metadata: {
+            startedAt: new Date(),
+            source: 'manual' as const,
+            updatedAt: new Date()
+          }
+        };
+
+        const session = await startSession(sessionData);
+        if (session && session._id) {
+          setCurrentSessionId(session._id);
+          setIsPlaying(true);
+          
+          addNotification({
+            type: 'success',
+            title: 'Meditation Started',
+            message: `${selectedMeditation.name} session started for ${duration} minutes`,
+            priority: 'low'
+          });
+        }
+      } catch (error: any) {
+        addNotification({
+          type: 'error',
+          title: 'Session Start Failed',
+          message: error.message || 'Failed to start meditation session',
+          priority: 'medium'
+        });
+      }
+    } else {
+      setIsPlaying(false);
+    }
   };
 
   const handleReset = () => {
     setIsPlaying(false);
     setTimeLeft(duration * 60);
+    setCurrentSessionId(null);
   };
+
+  const handleSessionComplete = async () => {
+    if (currentSessionId) {
+      try {
+        const completionData = {
+          session: {
+            actualDuration: duration * 60 - timeLeft,
+            completed: true
+          },
+          experience: {
+            difficulty: 3,
+            enjoyment: 5,
+            effectiveness: 5,
+            distractionLevel: 2,
+            notes: `Completed ${selectedMeditation.name} session`
+          },
+          metadata: {
+            completedAt: new Date(),
+            updatedAt: new Date()
+          }
+        };
+
+        await completeSession(currentSessionId, completionData);
+
+        addNotification({
+          type: 'success',
+          title: 'Session Complete!',
+          message: `Great job! You completed your ${selectedMeditation.name} meditation.`,
+          priority: 'medium'
+        });
+
+        // Reset state
+        setCurrentSessionId(null);
+        setTimeLeft(duration * 60);
+      } catch (error: any) {
+        addNotification({
+          type: 'error',
+          title: 'Session Save Failed',
+          message: error.message || 'Failed to save meditation session',
+          priority: 'medium'
+        });
+      }
+    }
+  };
+
+  // Get real guided content from context
+  const guidedSessions = meditationState.guidedContent || [];
+  const recentSessions = meditationState.sessions?.slice(0, 7) || [];
+  const weeklyProgress = recentSessions.map(session => ({
+    day: new Date(session.metadata?.startedAt || new Date()).toLocaleDateString('en-US', { weekday: 'short' }),
+    completed: session.session?.completed || false,
+    duration: session.session?.actualDuration || 0
+  }));
 
   return (
     <div className="min-h-screen bg-background p-4 pb-20">
       <div className="max-w-md mx-auto space-y-6">
         {/* Header */}
-        <div 
-          className="relative h-40 bg-cover bg-center rounded-2xl overflow-hidden"
-          style={{ backgroundImage: `url(${meditationZen})` }}
-        >
+        <div className="relative h-40 bg-cover bg-center rounded-2xl overflow-hidden bg-[url('/src/assets/meditation-zen.jpg')]">
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
           <div className="absolute bottom-4 left-4 text-white">
             <h1 className="font-caslon text-2xl mb-1">Meditation Center</h1>
@@ -335,43 +459,65 @@ export const DetailedMeditationView = () => {
                 <CardDescription>Expert-led meditations for specific needs</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {guidedSessions.map((session) => (
-                    <div key={session.id} className="p-4 bg-muted/30 rounded-xl">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <h4 className="font-medium text-foreground">{session.title}</h4>
-                          <p className="text-sm text-muted-foreground">by {session.instructor}</p>
+                {meditationState.isLoading ? (
+                  <div className="text-center py-6">
+                    <p className="text-muted-foreground">Loading guided sessions...</p>
+                  </div>
+                ) : guidedSessions.length === 0 ? (
+                  <div className="text-center py-6">
+                    <p className="text-muted-foreground">No guided sessions available</p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="mt-2"
+                      onClick={() => fetchGuidedContent()}
+                    >
+                      Refresh
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {guidedSessions.map((session) => (
+                      <div key={session.id} className="p-4 bg-muted/30 rounded-xl">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <h4 className="font-medium text-foreground">{session.title}</h4>
+                            <p className="text-sm text-muted-foreground">by {session.instructor || 'Guided Meditation'}</p>
+                          </div>
+                          <div className="text-right">
+                            <Badge variant="outline" className="text-xs mb-1">
+                              {session.difficulty || 'All Levels'}
+                            </Badge>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <div className="flex items-center space-x-1 mb-1">
-                            <Star className="w-3 h-3 text-warning fill-current" />
-                            <span className="text-sm font-medium">{session.rating}</span>
+                        <p className="text-sm text-muted-foreground mb-3">{session.description}</p>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3 text-sm text-muted-foreground">
+                            <div className="flex items-center space-x-1">
+                              <Clock className="w-3 h-3" />
+                              <span>{Math.floor(session.duration / 60)}m</span>
+                            </div>
+                            <Badge variant="outline" className="text-xs">
+                              {session.type.replace('_', ' ')}
+                            </Badge>
                           </div>
-                          <div className="flex items-center space-x-1 text-xs text-muted-foreground">
-                            <Download className="w-3 h-3" />
-                            <span>{session.downloads}</span>
-                          </div>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedType(session.type);
+                              setDuration(Math.floor(session.duration / 60));
+                              setActiveTab("practice");
+                            }}
+                          >
+                            <Play className="w-3 h-3 mr-1" />
+                            Start
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3 text-sm text-muted-foreground">
-                          <div className="flex items-center space-x-1">
-                            <Clock className="w-3 h-3" />
-                            <span>{session.duration}m</span>
-                          </div>
-                          <Badge variant="outline" className="text-xs">
-                            {meditationTypes.find(t => t.id === session.type)?.name}
-                          </Badge>
-                        </div>
-                        <Button size="sm" variant="outline">
-                          <Play className="w-3 h-3 mr-1" />
-                          Play
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -386,7 +532,7 @@ export const DetailedMeditationView = () => {
                     <Flame className="w-6 h-6 mx-auto" />
                   </div>
                   <p className="text-sm text-muted-foreground">Streak</p>
-                  <p className="text-lg font-semibold">7 days</p>
+                  <p className="text-lg font-semibold">{streakData?.current || 0} days</p>
                 </CardContent>
               </Card>
               
@@ -396,7 +542,7 @@ export const DetailedMeditationView = () => {
                     <Clock className="w-6 h-6 mx-auto" />
                   </div>
                   <p className="text-sm text-muted-foreground">Total Time</p>
-                  <p className="text-lg font-semibold">12.5h</p>
+                  <p className="text-lg font-semibold">{meditationStats?.totalMinutes || 0}m</p>
                 </CardContent>
               </Card>
             </div>
@@ -411,17 +557,30 @@ export const DetailedMeditationView = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => (
-                    <div key={day} className="flex items-center justify-between">
-                      <span className="text-sm text-foreground">{day}</span>
+                  {weeklyProgress.length > 0 ? weeklyProgress.map((dayData, index) => (
+                    <div key={dayData.day || index} className="flex items-center justify-between">
+                      <span className="text-sm text-foreground">{dayData.day}</span>
                       <div className="flex items-center space-x-2">
-                        <Progress value={Math.random() * 100} className="w-20 h-2" />
+                        <Progress 
+                          value={dayData.completed ? 100 : 0} 
+                          className="w-20 h-2" 
+                        />
                         <span className="text-xs text-muted-foreground w-8">
-                          {index < 5 ? `${Math.floor(Math.random() * 20 + 5)}m` : '-'}
+                          {dayData.duration > 0 ? `${Math.floor(dayData.duration / 60)}m` : '-'}
                         </span>
                       </div>
                     </div>
-                  ))}
+                  )) : (
+                    ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
+                      <div key={day} className="flex items-center justify-between">
+                        <span className="text-sm text-foreground">{day}</span>
+                        <div className="flex items-center space-x-2">
+                          <Progress value={0} className="w-20 h-2" />
+                          <span className="text-xs text-muted-foreground w-8">-</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>

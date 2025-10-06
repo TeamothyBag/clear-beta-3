@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -14,6 +14,10 @@ import {
   Leaf
 } from "lucide-react";
 import meditationZen from "@/assets/meditation-zen.jpg";
+import { useMeditation } from "../contexts/MeditationContext";
+import { useToast } from "../hooks/use-toast";
+import { useMeditationTracker } from "../hooks/wellness";
+import { dateUtils } from "../utils";
 
 export const MeditationSession = () => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -21,6 +25,12 @@ export const MeditationSession = () => {
   const [timeLeft, setTimeLeft] = useState(duration * 60); // seconds
   const [isMuted, setIsMuted] = useState(false);
   const [selectedType, setSelectedType] = useState("breathing");
+  const [sessionStarted, setSessionStarted] = useState(false);
+  const [currentSession, setCurrentSession] = useState<string | null>(null);
+
+  const { createSession, completeSession, state: meditationState } = useMeditation();
+  const { toast } = useToast();
+  const { meditationStats } = useMeditationTracker();
 
   const meditationTypes = [
     {
@@ -46,6 +56,13 @@ export const MeditationSession = () => {
     }
   ];
 
+  // Update timeLeft when duration changes
+  useEffect(() => {
+    if (!isPlaying && !sessionStarted) {
+      setTimeLeft(duration * 60);
+    }
+  }, [duration, isPlaying, sessionStarted]);
+
   const durations = [3, 5, 10, 15, 20];
 
   useEffect(() => {
@@ -56,7 +73,8 @@ export const MeditationSession = () => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
             setIsPlaying(false);
-            return duration * 60;
+            handleSessionComplete();
+            return 0;
           }
           return prev - 1;
         });
@@ -66,7 +84,37 @@ export const MeditationSession = () => {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isPlaying, timeLeft, duration]);
+  }, [isPlaying, timeLeft]);
+
+  const handleSessionComplete = async () => {
+    if (currentSession) {
+      try {
+        await completeSession(currentSession, {
+          difficulty: 5, // Default values, could be made interactive
+          enjoyment: 8,
+          effectiveness: 7,
+          distractionLevel: 3,
+          notes: `Completed ${selectedType} meditation for ${duration} minutes`,
+        });
+
+        toast({
+          title: "Session Complete!",
+          description: `Great job! You meditated for ${duration} minutes.`,
+        });
+
+        setSessionStarted(false);
+        setCurrentSession(null);
+        setTimeLeft(duration * 60);
+      } catch (error) {
+        console.error('Error completing session:', error);
+        toast({
+          title: "Error",
+          description: "Failed to save session. Please try again.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
 
   useEffect(() => {
     setTimeLeft(duration * 60);
@@ -80,13 +128,53 @@ export const MeditationSession = () => {
 
   const progress = ((duration * 60 - timeLeft) / (duration * 60)) * 100;
 
-  const handlePlayPause = () => {
-    setIsPlaying(!isPlaying);
+  const handlePlayPause = async () => {
+    if (!isPlaying && !sessionStarted) {
+      // Start a new session
+      try {
+        const selectedMeditation = meditationTypes.find(type => type.id === selectedType)!;
+        const currentHour = new Date().getHours();
+        
+        const session = await createSession({
+          session: {
+            type: selectedType as 'breathing' | 'mindfulness' | 'loving-kindness',
+            plannedDuration: duration,
+          },
+          environment: {
+            timeOfDay: currentHour < 12 ? 'morning' : currentHour < 18 ? 'afternoon' : 'evening',
+            location: 'home',
+          }
+        });
+
+        if (session) {
+          setCurrentSession(session._id!);
+          setSessionStarted(true);
+          setIsPlaying(true);
+          
+          toast({
+            title: "Session Started",
+            description: `Beginning ${duration}-minute ${selectedMeditation.name} session`,
+          });
+        }
+      } catch (error) {
+        console.error('Error starting session:', error);
+        toast({
+          title: "Error",
+          description: "Failed to start session. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } else {
+      // Toggle pause/play for existing session
+      setIsPlaying(!isPlaying);
+    }
   };
 
   const handleReset = () => {
     setIsPlaying(false);
     setTimeLeft(duration * 60);
+    setSessionStarted(false);
+    setCurrentSession(null);
   };
 
   const selectedMeditation = meditationTypes.find(type => type.id === selectedType)!;
@@ -94,16 +182,40 @@ export const MeditationSession = () => {
   return (
     <div className="space-y-6">
       {/* Header Image */}
-      <div 
-        className="relative h-48 bg-cover bg-center rounded-2xl overflow-hidden"
-        style={{ backgroundImage: `url(${meditationZen})` }}
-      >
+      <div className="relative h-48 bg-cover bg-center rounded-2xl overflow-hidden meditation-zen-bg">
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
         <div className="absolute bottom-4 left-4 text-white">
           <h2 className="font-caslon text-2xl mb-1">Meditation Session</h2>
           <p className="text-white/80">Find peace in the present moment</p>
         </div>
       </div>
+
+      {/* Progress Stats */}
+      {meditationStats.totalSessions > 0 && (
+        <Card className="bg-primary/5">
+          <CardContent className="p-4">
+            <h3 className="font-semibold text-foreground mb-3">Your Progress</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary">{meditationStats.totalSessions}</div>
+                <div className="text-xs text-muted-foreground">Total Sessions</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary">{Math.round(meditationStats.totalMinutes)}</div>
+                <div className="text-xs text-muted-foreground">Minutes Practiced</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary">{meditationStats.streakDays}</div>
+                <div className="text-xs text-muted-foreground">Day Streak</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary">{Math.round(meditationStats.averageSession)}</div>
+                <div className="text-xs text-muted-foreground">Avg. Minutes</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Meditation Type Selection */}
       <div className="space-y-3">

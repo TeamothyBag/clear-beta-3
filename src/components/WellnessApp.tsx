@@ -44,14 +44,14 @@ export const WellnessApp = () => {
       {renderCurrentView()}
       
       {/* Crisis Support Quick Access */}
-      {!showCrisisSupport && (
+      {/* {!showCrisisSupport && (
         <button
           onClick={handleCrisisSupport}
           className="fixed top-4 right-4 bg-destructive text-destructive-foreground px-3 py-2 rounded-full text-sm font-medium shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 z-40"
         >
           Crisis Support
         </button>
-      )}
+      )} */}
 
       {/* Back Button for Crisis Support */}
       {showCrisisSupport && (

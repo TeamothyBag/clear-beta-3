@@ -49,6 +49,41 @@ All colors MUST be HSL for consistency and accessibility
     --warning-foreground: 45 15% 25%;
     --success: 142 71% 45%;
     --success-foreground: 0 0% 98%;
+  }
+
+  .dark {
+    /* Dark mode keeps the same therapeutic approach with deeper tones */
+    --background: 45 20% 8%; /* #1A1815 - Deep warm charcoal */
+    --foreground: 60 15% 85%; /* #D4D1C7 - Soft warm light */
+    
+    --primary: 82 25% 55%; /* Brighter sage in dark mode */
+    --primary-light: 82 35% 65%;
+    --primary-deep: 82 30% 35%;
+    --primary-foreground: 45 20% 8%;
+    
+    --secondary: 35 15% 25%;
+    --secondary-foreground: 60 15% 85%;
+    --muted: 45 15% 15%;
+    --muted-foreground: 35 10% 70%;
+    
+    --accent: 82 35% 65%;
+    --accent-foreground: 45 20% 8%;
+    
+    --card: 45 15% 12%;
+    --card-foreground: 60 15% 85%;
+    --popover: 45 15% 12%;
+    --popover-foreground: 60 15% 85%;
+    
+    --border: 45 15% 20%;
+    --input: 45 15% 20%;
+    --ring: 82 25% 55%;
+    
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 98%;
+    --warning: 43 96% 56%;
+    --warning-foreground: 45 20% 8%;
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 98%;
 
     --radius: 0.5rem;
     
@@ -102,6 +137,37 @@ All colors MUST be HSL for consistency and accessibility
     --sidebar-border: 28 12% 20%;
     --sidebar-ring: 76 40% 74%;
   }
+}
+
+/* Custom animations for HealthRings component */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 5px currentColor;
+  }
+  50% {
+    box-shadow: 0 0 20px currentColor, 0 0 30px currentColor;
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+.animate-glow {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+.drop-shadow-glow {
+  filter: drop-shadow(0 0 4px currentColor);
 }
 
 @layer base {
@@ -206,4 +272,9 @@ All colors MUST be HSL for consistency and accessibility
 @keyframes pulseCalm {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.7; }
+}
+
+/* Component specific backgrounds */
+.meditation-zen-bg {
+  background-image: url('./assets/meditation-zen.jpg');
 }
